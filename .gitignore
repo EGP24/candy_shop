@@ -3,6 +3,7 @@ orders_test.json
 couriers_test.json
 test.py
 db/base.db
+db/test_base.db
 
 
 # Byte-compiled / optimized / DLL files

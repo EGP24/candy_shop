@@ -39,4 +39,3 @@ class CourierInterval(SqlAlchemyBase, SerializerMixin):
     def validate_time_end(self, key, value):
         time_end = datetime.strptime(value.split('-')[1], '%H:%M').time()
         return time_end
-

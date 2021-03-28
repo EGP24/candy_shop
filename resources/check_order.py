@@ -1,5 +1,5 @@
-from data import db_session
 from data.time_order_intervals import OrderInterval
+from data import db_session
 
 
 def check_intervals(order_intervals, courier_interval):
@@ -8,7 +8,7 @@ def check_intervals(order_intervals, courier_interval):
         time_end_order = order_interval.time_end.hour * 60 + order_interval.time_end.minute
         time_end_courier = courier_interval.time_end.hour * 60 + courier_interval.time_end.minute
         time_start_courier = courier_interval.time_start.hour * 60 + courier_interval.time_start.minute
-        if set(range(time_start_courier - 1, time_end_courier)) & set(range(time_start_order - 1, time_end_order)):
+        if set(range(time_start_courier, time_end_courier + 1)) & set(range(time_start_order - 1, time_end_order)):
             return True
     return False
 

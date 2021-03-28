@@ -1,14 +1,14 @@
-from flask_restful import Resource, abort
-from flask import jsonify, make_response, request
-from data import db_session
-from data.couriers import Courier
-from data.regions import Region
-from data.delivery import Delivery
 from data.time_courier_intervals import CourierInterval
 from data.time_order_intervals import OrderInterval
-from data.orders import Order
+from flask import jsonify, make_response, request
+from flask_restful import Resource, abort
 from .check_order import check_order
+from data.delivery import Delivery
+from data.couriers import Courier
+from data.regions import Region
+from data.orders import Order
 from datetime import datetime
+from data import db_session
 
 
 class OrdersListResource(Resource):
@@ -24,11 +24,12 @@ class OrdersListResource(Resource):
                 continue
 
             try:
+                assert isinstance(order_data['delivery_hours'], list)
                 order = Order(order_id=order_data['order_id'], weight=order_data['weight'], region=order_data['region'])
                 intervals = [OrderInterval(order_id=order_data['order_id'], time_start=time, time_end=time)
                              for time in order_data['delivery_hours']]
                 validated.extend([order] + intervals)
-            except Exception as e:
+            except Exception:
                 not_validated.append(order_data['order_id'])
                 continue
 
@@ -52,7 +53,8 @@ class OrdersAssignResource(Resource):
         if not courier:
             abort(400)
 
-        orders = session.query(Order).filter(Order.delivery_id != None, Order.delivery_id == courier.delivery_now, Order.is_complete != 1).all()
+        orders = session.query(Order).filter(Order.delivery_id != None, Order.delivery_id == courier.delivery_now,
+                                             Order.is_complete == 0).all()
         if orders:
             return make_response(jsonify({'orders': [{'id': id} for id in [order.order_id for order in orders]],
                                           'assign_time': str(orders[0].delivery_orm)}))
@@ -102,8 +104,9 @@ class OrderCompleteResource(Resource):
 
         if not order.is_complete:
             try:
-                delivery_time = (datetime.strptime(request.json['complete_time'], '%Y-%m-%dT%H:%M:%S.%fZ') -
-                                 courier.delivery_orm.complete_time).total_seconds()
+                time_complete = datetime.strptime(request.json['complete_time'], '%Y-%m-%dT%H:%M:%S.%fZ')
+                time_delivery = courier.delivery_orm.complete_time
+                delivery_time = (time_complete - time_delivery).total_seconds()
 
                 order.is_complete = True
                 courier.sum_weight -= order.weight

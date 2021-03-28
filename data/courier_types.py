@@ -20,7 +20,7 @@ class CourierType(SqlAlchemyBase, SerializerMixin):
     def validate_id(self, key, value):
         session = create_session()
         ids = [courier_type.id for courier_type in session.query(CourierType).all()]
-        assert value in ids
+        assert value not in ids
         return value
 
     @validates('title')

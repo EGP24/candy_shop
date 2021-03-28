@@ -10,7 +10,7 @@ class Delivery(SqlAlchemyBase, SerializerMixin):
     __tablename__ = 'delivery'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    courier_type = Column(Integer,  ForeignKey('courier_types.id'))
+    courier_type = Column(Integer, ForeignKey('courier_types.id'))
     assign_time = Column(DateTime)
     complete_time = Column(DateTime)
 
@@ -21,6 +21,9 @@ class Delivery(SqlAlchemyBase, SerializerMixin):
 
     def __str__(self):
         return self.assign_time.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+    def get_complete_time(self):
+        return self.complete_time.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
     @validates('id')
     def validate_id(self, key, value):
@@ -46,6 +49,3 @@ class Delivery(SqlAlchemyBase, SerializerMixin):
     def validate_complete_time(self, key, value):
         value = datetime.strptime(value, '%Y-%m-%dT%H:%M:%S.%fZ')
         return value
-
-
-

@@ -1,12 +1,12 @@
-from flask_restful import Resource, abort
+from data.time_courier_intervals import CourierInterval
 from flask import jsonify, make_response, request
-from data import db_session
+from flask_restful import Resource, abort
+from .check_order import check_order
 from data.delivery import Delivery
 from data.couriers import Courier
 from data.regions import Region
-from data.time_courier_intervals import CourierInterval
 from data.orders import Order
-from .check_order import check_order
+from data import db_session
 
 
 class CouriersListResource(Resource):
@@ -22,6 +22,7 @@ class CouriersListResource(Resource):
                 continue
 
             try:
+                assert isinstance(courier_data['regions'], list) and isinstance(courier_data['working_hours'], list)
                 courier = Courier(courier_id=courier_data['courier_id'], courier_type=courier_data['courier_type'])
                 delivery = Delivery(id=courier_data['courier_id'])
                 regions = [Region(courier_id=courier_data['courier_id'], number_region=number)
@@ -29,7 +30,7 @@ class CouriersListResource(Resource):
                 intervals = [CourierInterval(courier_id=courier_data['courier_id'], time_start=time, time_end=time)
                              for time in courier_data['working_hours']]
                 validated.extend([courier, delivery] + regions + intervals)
-            except Exception as e:
+            except Exception:
                 not_validated.append(courier_data['courier_id'])
                 continue
 
@@ -45,35 +46,34 @@ class CouriersListResource(Resource):
 class CouriersResource(Resource):
     def patch(self, courier_id):
         keys = ['courier_type', 'regions', 'working_hours']
+        if not courier_id.isdigit():
+            abort(400)
+        courier_id = int(courier_id)
+
         session = db_session.create_session()
         courier = session.query(Courier).filter(Courier.courier_id == courier_id).first()
 
         if any(key not in keys for key in request.json.keys()) or not courier:
-            print('jopa')
             abort(400)
 
         try:
             if 'courier_type' in request.json:
                 courier.courier_type = request.json['courier_type']
-            print(1)
 
             if 'regions' in request.json:
+                assert isinstance(request.json['regions'], list)
                 courier_regions = {region.number_region: region for region in session.query(Region).filter(
                     Region.courier_orm == courier).all()}
-                print(11)
                 for key, value in courier_regions.items():
                     if key not in request.json['regions']:
-                        print(22)
                         session.delete(value)
 
-                print(33)
                 for region in request.json['regions']:
                     if region not in courier_regions:
-                        print(44)
                         session.add(Region(courier_id=courier_id, number_region=region))
-            print(2)
 
             if 'working_hours' in request.json:
+                assert isinstance(request.json['working_hours'], list)
                 courier_intervals = {str(interval): interval for interval in session.query(CourierInterval).filter(
                     CourierInterval.courier_orm == courier).all()}
                 for key, value in courier_intervals.items():
@@ -83,14 +83,12 @@ class CouriersResource(Resource):
                 for interval in request.json['working_hours']:
                     if interval not in courier_intervals:
                         session.add(CourierInterval(courier_id=courier_id, time_start=interval, time_end=interval))
-            print(3)
-        except Exception as e:
-            print(e)
+        except Exception:
             abort(400)
         session.commit()
 
-        orders = sorted(session.query(Order).filter(Order.delivery_orm == courier.delivery_orm, Order.is_complete == 0).all(),
-                        key=lambda x: x.weight)
+        orders = sorted(session.query(Order).filter(Order.delivery_orm == courier.delivery_orm,
+                                                    Order.is_complete == 0).all(), key=lambda x: x.weight)
         courier_regions = session.query(Region).filter(Region.courier_orm == courier).all()
         courier_intervals = session.query(CourierInterval).filter(CourierInterval.courier_orm == courier).all()
         courier_carrying = courier.courier_type_orm.carrying
@@ -98,7 +96,7 @@ class CouriersResource(Resource):
         for order in orders:
             try:
                 if not check_order(order, courier_regions, courier_intervals, courier_sum_weight, courier_carrying):
-                        order.delivery_id = None
+                    order.delivery_id = None
                 else:
                     courier_sum_weight += order.weight
             except Exception:
@@ -113,10 +111,13 @@ class CouriersResource(Resource):
                  CourierInterval.courier_orm == courier).all()]}))
 
     def get(self, courier_id):
+        if not courier_id.isdigit():
+            abort(400)
+        courier_id = int(courier_id)
         session = db_session.create_session()
         courier = session.query(Courier).filter(Courier.courier_id == courier_id).first()
         if not courier:
-            abort(404)
+            abort(400)
 
         courier_regions = [r.number_region for r in session.query(Region).filter(Region.courier_orm == courier)]
         working_hours = [str(i) for i in session.query(CourierInterval).filter(CourierInterval.courier_orm == courier)]

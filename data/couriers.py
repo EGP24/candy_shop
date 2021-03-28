@@ -9,7 +9,7 @@ class Courier(SqlAlchemyBase, SerializerMixin):
     __tablename__ = 'couriers'
 
     courier_id = Column(Integer, primary_key=True, autoincrement=True)
-    courier_type = Column(Integer,  ForeignKey('courier_types.id'))
+    courier_type = Column(Integer, ForeignKey('courier_types.id'))
     sum_weight = Column(Float, default=0)
     earnings = Column(Integer, default=0)
     delivery_now = Column(Integer, ForeignKey('delivery.id'))
