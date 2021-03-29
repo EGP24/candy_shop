@@ -4,7 +4,6 @@ from resources import order_resource
 from flask_restful import Api
 from data import db_session
 from os.path import exists
-from waitress import serve
 from flask import Flask
 from os import mkdir
 
@@ -37,7 +36,7 @@ def main():
     db_session.global_init('db/base.db')
     add_courier_types()
 
-    serve(app, host='0.0.0.0', port=8080)
+    app.run(host='0.0.0.0', port=8080)
 
 
 if __name__ == '__main__':
